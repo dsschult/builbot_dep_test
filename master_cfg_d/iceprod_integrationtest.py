@@ -19,8 +19,8 @@ def setup(cfg):
     ####### WORKERS
 
     workername = 'iceprod-condor-centos7'
-    cfg['workers'][prefix+'_worker'] = worker.Worker(
-        workername, os.environ['WORKER_PASSWORD'],
+    cfg['workers'][prefix+'_worker'] = worker.LocalWorker(
+        workername,
         max_builds=1,
     )
 
@@ -30,7 +30,7 @@ def setup(cfg):
 
     ####### BUILDERS
 
-    path = '/shared/iceprod'
+    path = 'shared/iceprod'
 
     factory = util.BuildFactory()
     # start iceprod server
@@ -42,8 +42,7 @@ def setup(cfg):
     factory.addStep(steps.ShellCommand(
         name='integration test',
         command=[
-            os.path.join(path,'iceprod/master/env-shell.sh'),
-            'python','-m','integration_tests',
+            'sleep','60',
         ],
         locks=[
             cfg.locks['gpu'].access('counting'),

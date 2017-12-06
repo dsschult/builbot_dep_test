@@ -19,8 +19,8 @@ def setup(cfg):
     ####### WORKERS
 
     workername = 'iceprod-centos7'
-    cfg['workers'][workername] = worker.Worker(
-        workername, os.environ['WORKER_PASSWORD'],
+    cfg['workers'][workername] = worker.LocalWorker(
+        workername, 
         max_builds=1,
     )
 
@@ -30,8 +30,8 @@ def setup(cfg):
 
     ####### BUILDERS
 
-    cvmfs_path = '/shared/iceprod'
-    coverage_path = '/shared/coverage'
+    cvmfs_path = 'shared/iceprod'
+    coverage_path = 'shared/coverage'
 
     factory = util.BuildFactory()
     # start iceprod server
@@ -44,8 +44,7 @@ def setup(cfg):
     factory.addStep(steps.ShellCommand(
         name='unittest',
         command=[
-            os.path.join(cvmfs_path,'iceprod/master/env-shell.sh'),
-            './coverage.sh','--core','--server',
+            'sleep','60',
         ],
         locks=[
             cfg.locks['iceprod_shared'].access('counting')
@@ -54,8 +53,7 @@ def setup(cfg):
     factory.addStep(steps.ShellSequence(
         name='coverage',
         commands=[
-            util.ShellArg(command=['cp','-r','htmlcov',coverage_path+'.tmp']),
-            util.ShellArg(command=['mv',coverage_path+'.tmp',coverage_path]),
+            util.ShellArg(command=['sleep','1']),
         ],
         locks=[
             cfg.locks['iceprod_shared'].access('counting')

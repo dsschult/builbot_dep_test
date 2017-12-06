@@ -16,8 +16,8 @@ def setup(cfg):
     ####### WORKERS
 
     workername = 'iceprod-centos7-build'
-    cfg['workers'][workername] = worker.Worker(
-        workername, os.environ['WORKER_PASSWORD'],
+    cfg['workers'][workername] = worker.LocalWorker(
+        workername,
         max_builds=1,
     )
 
@@ -32,25 +32,27 @@ def setup(cfg):
 
 
     ####### BUILDERS
+    
+    from buildbot.process.buildstep import SUCCESS,SKIPPED
 
-    path = '/shared/iceprod'
+    path = os.path.join(os.getcwd(),'../shared/iceprod')
+    
+    def isImportant(change):
+        try:
+            if not (os.path.exists(path) and os.listdir(path)):
+                return True # needs rebuilding
+            include = ['setup.cfg','setup.py','requirements.txt']
+            for f in change.files:
+                if f in include:
+                    return True
+            return False
+        except:
+            raise
+            return True
 
     class SetupCVMFS(steps.BuildStep):
         def run(self):
-            changes = util.Properties('changes')
-
-            def isImportant(change):
-                try:
-                    if not os.listdir(path):
-                        return True # needs rebuilding
-                    include = ['setup.cfg','setup.py','requirements.txt']
-                    for f in change.files:
-                        if f in include:
-                            return True
-                    return False
-                except:
-                    return True
-
+            changes = util.Property('changes')
             if isImportant(changes):
                 # create a ShellCommand for each stage and add them to the build
                 self.build.addStepsAfterCurrentStep([
@@ -68,24 +70,22 @@ def setup(cfg):
                     steps.ShellCommand(
                         name='build cvmfs',
                         command=[
-                            'python', 'builders/build.py',
-                            '--src', 'icecube.opensciencegrid.org',
-                            '--dest', path,
-                            '--variant', 'iceprod',
-                            '--version', 'master',
-                            '--debug',
+                            'sleep','20',
                         ],
                         workdir='build',
                         haltOnFailure=True,
-                        locks=[
-                            cfg.locks['iceprod_shared'].access('exclusive')
-                        ],
                     ),
                 ])
-
+                return SUCCESS
+            return SKIPPED
 
     factory = util.BuildFactory()
-    factory.addStep(SetupCVMFS)
+    factory.addStep(SetupCVMFS(
+        name="Do setup?",
+        locks=[
+            cfg.locks['iceprod_shared'].access('exclusive')
+        ],
+    ))
 
     cfg['builders'][prefix+'_builder'] = util.BuilderConfig(
         name=prefix+'_builder',
@@ -105,4 +105,4 @@ def setup(cfg):
     )
 
 config = Config(setup)
-config.locks['iceprod_shared'] = util.MasterLock('cvmfs_lock')
+config.locks['iceprod_shared'] = util.MasterLock('cvmfs_lock', maxCount=100)
